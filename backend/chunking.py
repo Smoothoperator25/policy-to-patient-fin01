@@ -28,7 +28,7 @@ from backend.models import ChunkBase
 # Heading‑aware section detection (shared with ingest)
 # ---------------------------------------------------------------------------
 
- _HEADING_RE = re.compile(r"^\d+(\.\d+)*\s+\S", re.MULTILINE)
+_HEADING_RE = re.compile(r"^\d+(\.\d+)*\s+\S", re.MULTILINE)
 
 
 def _detect_headings(text: str) -> List[int]:

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 class ChunkBase(BaseModel):
     """A single extracted clause/paragraph chunk."""
 
-    chunk_id: str = Field(description="Unique chunk identifier, e.g. "A1P3"")
+    chunk_id: str = Field(description='Unique chunk identifier, e.g. "A1P3"')
     doc_id: str = Field(description="Document identifier")
     page: int = Field(description="Page number (1-indexed)")
     section: Optional[str] = Field(
@@ -56,7 +56,7 @@ class QAAnswer(BaseModel):
 class QAResponse(BaseModel):
     """Response from POST /api/ask."""
 
-    status: str = Field(description: "answered" | "insufficient")
+    status: str = Field(description="answered | insufficient")
     answer: str = Field(default="", description="The answer text, if answered")
     reason: str = Field(
         default="", description="Human-readable reason, if insufficient"

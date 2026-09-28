@@ -23,7 +23,6 @@ Returns
 from __future__ import annotations
 
 import re
-import io
 from pathlib import Path
 from typing import List, Tuple
 
@@ -98,123 +97,7 @@ def _extract_words_with_bboxes(page) -> List[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Chunking logic
-# ---------------------------------------------------------------------------
-
-def _chunk_by_clauses(
-    page_text: str,
-    page: int,
-    doc_id: str,
-    section: str | None,
-    word_min: int = 60,
-    word_max: int = 220,
-) -> List[dict]:
-    """Split *page_text* into clause-aware chunks in the range [word_min, word_max].
-
-    Heuristic
-    ----------
-    * If the page text is short (< word_min) we return it as a single chunk.
-    * Otherwise we split on double-newlines (paragraphs) and on sentences
-      that end with . ! ? followed by a space or end-of-string.
-    * Each chunk is forced into [word_min, word_max]; if a sentence pushes us
-      over word_max we start a new chunk.
-    * We never merge text from different pages — this function is called per‑page.
-    """
-    words = page_text.split()
-    wcount = len(words)
-
-    # Page too short for a meaningful chunk — return the whole thing
-    if wcount <= word_min:
-        return [
-            {
-                "chunk_id": f"{doc_id}P{page}C1",
-                "doc_id": doc_id,
-                "page": page,
-                "section": section,
-                "text": page_text.strip(),
-                "bboxes": [],  # will be filled by the caller if needed
-                "page_width": 0,
-                "page_height": 0,
-            }
-        ]
-
-    # Split into candidate segments:
-    # 1) paragraphs (double-newline), 2) sentences.
-    # We first split on newlines, then further on sentences.
-    raw_paragraphs = page_text.split("\n\n")
-
-    segments: List[str] = []
-    for para in raw_paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-        # Further split on sentence boundaries
-        sentences = re.split(r"(?<=[.!?])\s+", para)
-        for s in sentences:
-            s = s.strip()
-            if s:
-                segments.append(s)
-
-    # If no sentence splits found (e.g. a very short paragraph), keep the
-    # whole paragraph as one segment
-    if not segments:
-        segments = [p.strip() for p in raw_paragraphs if p.strip()]
-
-    chunks: List[dict] = []
-    current_text_parts: List[str] = []
-    current_word_count = 0
-
-    for seg in segments:
-        seg_words = seg.split()
-        seg_len = len(seg_words)
-
-        # If adding this segment would exceed word_max and we already have
-        # content, flush the current chunk first
-        if current_word_count + seg_len > word_max and current_text_parts:
-            chunk_text = " ".join(current_text_parts).strip()
-            if chunk_text:
-                chunks.append(
-                    {
-                        "chunk_id": f"{doc_id}P{page}C{len(chunks) + 1}",
-                        "doc_id": doc_id,
-                        "page": page,
-                        "section": section,
-                        "text": chunk_text,
-                        "bboxes": [],
-                        "page_width": 0,
-                        "page_height": 0,
-                    }
-                )
-            # Start new chunk
-            current_text_parts = [seg]
-            current_word_count = seg_len
-        else:
-            # Add segment to current chunk
-            current_text_parts.append(seg)
-            current_word_count += seg_len
-
-    # Flush remaining
-    if current_text_parts:
-        chunk_text = " ".join(current_text_parts).strip()
-        if chunk_text:
-            chunks.append(
-                {
-                    "chunk_id": f"{doc_id}P{page}C{len(chunks) + 1}",
-                    "doc_id": doc_id,
-                    "page": page,
-                    "section": section,
-                    "text": chunk_text,
-                    "bboxes": [],
-                    "page_width": 0,
-                    "page_height": 0,
-                }
-            )
-
-    return chunks
-
-
-# ---------------------------------------------------------------------------
-# Main entry point
+# Main entry point – chunking is delegated to backend.chunking
 # ---------------------------------------------------------------------------
 
 def extract_chunks(
@@ -279,8 +162,8 @@ def extract_chunks(
             [w["x0"], w["top"], w["x1"], w["bottom"]] for w in words
         ]
 
-        # Chunk by clauses/paragraphs
-        clause_chunks = _chunk_by_clauses(
+        # Chunk by clauses/paragraphs via the shared chunking module
+        clause_chunks = chunk_by_clauses(
             text, page_idx, doc_id, section,
             word_min=60, word_max=220,
         )

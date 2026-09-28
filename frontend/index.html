@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PolicyLens — Reading Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400;1,9..144,700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #F4EFE6;
+      --paper-2: #EAE3D4;
+      --rule: #D9D0BF;
+      --ink: #1B1A17;
+      --ink-soft: #5B574E;
+      --hl: #FFE066;
+      --stamp: #C4321F;
+      --focus: #1B1A17;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, #root {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      min-height: 100%;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Font fallback declarations for elements that override */
+    .font-fraunces { font-family: 'Fraunces', 'Georgia', 'Times New Roman', serif; }
+    .font-mono { font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+    .font-instrument { font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif; }
+
+    a { color: var(--ink); text-decoration: none; }
+    a:hover { color: var(--hl); }
+
+    /* ============================================================== */
+    /* Top bar */
+    /* ============================================================== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background-color: var(--paper);
+      border-bottom: 1px solid var(--rule);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .wordmark {
+      font-family: 'Fraunces', 'Georgia', 'Times New Roman', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--ink);
+    }
+
+    .doc-name {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      font-size: 0.95rem;
+      color: var(--ink-soft);
+    }
+
+    .page-indicator {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+    }
+
+    .synthetic-tag {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      background-color: var(--stamp);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .trace-btn {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      background: none;
+      border: none;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+    }
+
+    .trace-btn:hover {
+      background-color: #F0EFEB;
+    }
+
+    /* ============================================================== */
+    /* Layout */
+    /* ============================================================== */
+    .main-layout {
+      display: grid;
+      grid-template-areas:
+        "header header"
+        "conversation viewer";
+      grid-template-rows: auto 1fr;
+      grid-template-columns: 46% 54%;
+      min-height: 600px;
+      max-width: none;
+      width: 100%;
+      padding: 1rem 1.5rem;
+      gap: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        grid-template-areas:
+          "header"
+          "conversation"
+          "viewer";
+      }
+      .main-layout > * {
+        grid-area: auto;
+      }
+    }
+
+    /* ============================================================== */
+    /* Conversation pane (left) */
+    /* ============================================================== */
+    .conversation-pane {
+      background-color: var(--paper-2);
+      border-radius: 4px;
+      overflow: hidden;
+      height: fit-content;
+    }
+
+    .conversation-box {
+      padding: 1rem 1.5rem;
+      max-height: 70vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--rule) var(--paper-2);
+    }
+
+    .conversation-box::-webkit-scrollbar {
+      width: 6px;
+    }
+    .conversation-box::-webkit-scrollbar-thumb {
+      background-color: var(--rule);
+      border-radius: 3px;
+    }
+
+    .memo-entry {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .memo-entry:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .no-messages {
+      padding: 2rem;
+      color: var(--ink-soft);
+      text-align: center;
+    }
+
+    .memo-no {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      margin-bottom: 0.5rem;
+    }
+
+    .memo-question {
+      font-family: 'Fraunces', 'Georgia', 'Times New Roman', serif;
+      font-style: italic;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .memo-answer {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 0.75rem;
+    }
+
+    .memo-citations {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      margin-top: 0.25rem;
+    }
+
+    .citation-chip {
+      display: inline-block;
+      background-color: transparent;
+      border: 1px solid var(--hl);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.7rem;
+      margin-right: 2px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      color: var(--ink);
+      transition: background 0.2s;
+    }
+
+    .citation-chip:hover {
+      background-color: var(--hl);
+      color: var(--ink);
+    }
+
+    .citation-chip.selected {
+      background-color: var(--hl);
+      color: var(--ink);
+    }
+
+    .evidence-meter {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .evidence-label {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.65rem;
+      color: var(--ink-soft);
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    .evidence-bar {
+      width: 100%;
+      height: 6px;
+      background-color: #E8E6E3;
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .evidence-fill {
+      height: 100%;
+      background-color: var(--hl);
+      width: 70%; /* default width */
+      transition: width 300ms ease-out;
+    }
+
+    .evidence-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      color: var(--ink);
+      background: var(--paper-2);
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      display: none;
+    }
+
+    .evidence-bar:hover .evidence-tooltip {
+      display: block;
+    }
+
+    /* ============================================================== */
+    /* Composer */
+    /* ============================================================== */
+    .composer {
+      padding: 1rem 1.5rem;
+      background-color: var(--paper-2);
+      border-top: 1px solid var(--rule);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .composer-input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      font-size: 1rem;
+      background-color: white;
+      color: var(--ink);
+      resize: none;
+      min-height: 44px;
+    }
+
+    .composer-input:focus {
+      outline: none;
+      border-color: var(--hl);
+    }
+
+    .composer-input::placeholder {
+      color: var(--ink-soft);
+    }
+
+    /* ============================================================== */
+    /* Viewer pane (right) */
+    /* ============================================================== */
+    .viewer-pane {
+      background-color: var(--paper-2);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-header {
+      padding: 0.5rem 1rem;
+      background: white;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .viewer-header .page-nav {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .page-nav button {
+      background: none;
+      border: 1px solid var(--rule);
+      padding: 4px 8px;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .page-nav button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-indicator-small {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      color: var(--ink-soft);
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .fit-width-btn {
+      background: none;
+      border: 1px solid var(--rule);
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+    }
+
+    .fit-width-btn.active {
+      background-color: var(--hl);
+      color: var(--ink);
+      border-color: var(--hl);
+    }
+
+    /* PDF page container */
+    .pdf-page-container {
+      flex: 1;
+      background-color: var(--paper);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 1rem;
+    }
+
+    .pdf-page-img {
+      max-width: 100%;
+      max-height: 100%;
+      box-shadow: 0 0 0 1px var(--rule);
+      transition: opacity 0.2s;
+    }
+
+    .pdf-page-img.loading {
+      opacity: 0.7;
+    }
+
+    /* Page navigator */
+    .page-navigator {
+      padding: 0.5rem 1rem;
+      background: white;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ============================================================== */
+    /* Refusal / Insufficient state */
+    /* ============================================================== */
+    .refusal-stamp {
+      display: inline-block;
+      background: var(--stamp);
+      color: white;
+      padding: 1rem 1.25rem;
+      border-radius: 4px;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 1rem 0;
+      position: relative;
+      overflow: visible;
+    }
+
+    .refusal-stamp::before {
+      content: '"INSUFFICIENT INFORMATION"';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-2.5deg);
+      white-space: nowrap;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 1rem;
+      opacity: 0.3;
+    }
+
+    .refusal-reason {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      color: var(--ink);
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+
+    .closest-text {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .closest-text .label {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.7rem;
+      color: var(--ink-soft);
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .closest-text .clause-chip {
+      display: inline-block;
+      background: transparent;
+      border: 1px solid var(--hl);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.7rem;
+      margin-right: 2px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+    /* ============================================================== */
+    /* Trace drawer */
+    /* ============================================================== */
+    .trace-drawer {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 300px;
+      background-color: var(--paper-2);
+      border-left: 1px solid var(--rule);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--rule) var(--paper-2);
+    }
+
+    .trace-drawer.open {
+      transform: translateX(0);
+    }
+
+    .trace-drawer::-webkit-scrollbar {
+      width: 6px;
+    }
+    .trace-drawer::-webkit-scrollbar-thumb {
+      background-color: var(--rule);
+      border-radius: 3px;
+    }
+
+    .trace-drawer-header {
+      padding: 0.75rem 1rem;
+      background: white;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .trace-drawer h3 {
+      font-family: 'Instrument Sans', 'Georgia', 'Times New Roman', serif;
+      font-size: 0.85rem;
+    }
+
+    .trace-drawer-close {
+      background: none;
+      border: none;
+      color: var(--ink-soft);
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    .trace-entry {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--rule);
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+    }
+
+    .trace-entry .question {
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      color: var(--ink);
+      margin-right: 1rem;
+    }
+
+    .trace-entry .gate {
+      color: var(--hl);
+    }
+
+    .trace-entry .score {
+      color: var(--ink-soft);
+      margin-left: 0.5rem;
+    }
+
+    /* ============================================================== */
+    /* Loading skeleton */
+    /* ============================================================== */
+    .skeleton {
+      background: linear-gradient(90deg, var(--paper-2) 25%, var(--paper) 50%, var(--paper-2) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 400% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0!important;
+        transition-duration: 0!important;
+      }
+      .skeleton {
+        animation: none;
+      }
+    }
+
+    /* Focus ring */
+    .focus-visible:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top bar -->
+  <div class="top-bar" id="topBar">
+    <div class="wordmark">PolicyLens</div>
+    <div>
+      <span class="doc-name" id="docName">No document loaded</span>
+      <span class="page-indicator" id="pageInd">p. 0 / 0</span>
+      <span class="synthetic-tag" id="syntheticTag" style="display:none;">SYNTHETIC DEMO DATA</span>
+    </div>
+    <button class="trace-btn" id="traceBtn">Trace</button>
+  </div>
+
+  <!-- Main layout -->
+  <div class="main-layout" id="mainLayout">
+    <!-- Conversation pane -->
+    <div class="conversation-pane" id="conversationPane">
+      <div class="conversation-box" id="conversationBox">
+        <div class="no-messages" id="noMessages">
+          <p>File a policy to get started.</p>
+        </div>
+      </div>
+      <div class="composer">
+        <input type="text" class="composer-input" id="composerInput" placeholder="Ask about coverage, limits, exclusions..." autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Viewer pane -->
+    <div class="viewer-pane" id="viewerPane">
+      <div class="viewer-header">
+        <div class="page-nav">
+          <button class="page-nav-btn" id="prevPage" disabled><</button>
+          <span class="page-indicator-small" id="pageNum">0 / 0</span>
+          <button class="page-nav-btn" id="nextPage" disabled>></button>
+        </div>
+        <button class="fit-width-btn" id="fitWidthBtn">Fit width</button>
+      </div>
+      <div class="pdf-page-container" id="pdfContainer">
+        <div class="skeleton pdf-page-img loading" id="pageSkeleton"></div>
+      </div>
+      <div class="page-navigator">
+        <button class="page-nav-btn" id="prevPageNav" disabled><</button>
+        <span class="page-indicator-small" id="pageNumNav">0 / 0</span>
+        <button class="page-nav-btn" id="nextPageNav" disabled>></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Refusal stamp container (inserted dynamically) -->
+  <div id="refusalContainer"></div>
+
+  <!-- Trace drawer -->
+  <div class="trace-drawer" id="traceDrawer" role="dialog" aria-label="Trace log">
+    <div class="trace-drawer-header">
+      <h3>Trace Log</h3>
+      <button class="trace-drawer-close" id="traceDrawerClose" aria-label="Close trace">×</button>
+    </div>
+    <div class="trace-drawer-body" id="traceBody">
+      <!-- entries rendered by JS -->
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  /* ES Module: frontend logic */
+  /* ============================================================== -->
+  <script type="module">
+    import { fetchJSON } from './api.js';
+
+    // ============================================================
+    // State
+    // ============================================================
+    let state = {
+      docId: null,
+      currentPage: 1,
+      totalPages: 0,
+      isSynthetic: false,
+      traceOpen: false
+    };
+
+    // ============================================================
+    // DOM elements (cached)
+    // ============================================================
+    const el = {
+      topBar: document.getElementById('topBar'),
+      docName: document.getElementById('docName'),
+      pageInd: document.getElementById('pageInd'),
+      syntheticTag: document.getElementById('syntheticTag'),
+      traceBtn: document.getElementById('traceBtn'),
+      mainLayout: document.getElementById('mainLayout'),
+      conversationPane: document.getElementById('conversationPane'),
+      conversationBox: document.getElementById('conversationBox'),
+      noMessages: document.getElementById('noMessages'),
+      composerInput: document.getElementById('composerInput'),
+      viewerPane: document.getElementById('viewerPane'),
+      pdfContainer: document.getElementById('pdfContainer'),
+      pageSkeleton: document.getElementById('pageSkeleton'),
+      pageNum: document.getElementById('pageNum'),
+      prevPage: document.getElementById('prevPage'),
+      nextPage: document.getElementById('nextPage'),
+      fitWidthBtn: document.getElementById('fitWidthBtn'),
+      prevPageNav: document.getElementById('prevPageNav'),
+      nextPageNav: document.getElementById('nextPageNav'),
+      pageNumNav: document.getElementById('pageNumNav'),
+      refusalContainer: document.getElementById('refusalContainer'),
+      traceDrawer: document.getElementById('traceDrawer'),
+      traceBody: document.getElementById('traceBody'),
+      traceDrawerClose: document.getElementById('traceDrawerClose')
+    };
+
+    // ============================================================
+    // UI helpers
+    // ============================================================
+
+    function showLoading(show = true) {
+      if (show) {
+        el.pdfContainer.innerHTML = '';
+        const skeleton = document.createElement('div');
+        skeleton.className = 'pdf-page-img loading';
+        skeleton.innerHTML = '<div class="skeleton" style="width: 600px; height: 800px;"></div>';
+        el.pdfContainer.appendChild(skeleton);
+      } else {
+        el.pdfContainer.innerHTML = '<img class="pdf-page-img" id="pageImage" src="" alt="Policy page N of M">';
+      }
+    }
+
+    function updatePageIndicator(page, total) {
+      el.pageInd.textContent = `p. ${page} / ${total}`;
+      el.pageNum.textContent = `${page} / ${total}`;
+      el.pageNumNav.textContent = `${page} / ${total}`;
+    }
+
+    function setDocName(name, isSynthetic) {
+      el.docName.textContent = name;
+      if (isSynthetic) {
+        el.syntheticTag.style.display = 'inline';
+      } else {
+        el.syntheticTag.style.display = 'none';
+      }
+    }
+
+    function clearConversation() {
+      el.conversationBox.innerHTML = '';
+      el.noMessages.style.display = 'block';
+    }
+
+    function appendMemo(no, question, answer, citations) {
+      const entry = document.createElement('div');
+      entry.className = 'memo-entry';
+      entry.innerHTML = `
+        <span class="memo-no">No. ${no}</span>
+        <p class="memo-question">${question}</p>
+        <p class="memo-answer">${answer}</p>
+        <div class="memo-citations">
+          ${citations.map(c => `<span class="citation-chip" data-chunk-id="${c.chunk_id}">[p.${c.page} sec ${c.section || ''}]</span>`).join(' ')}
+        </div>
+      `;
+      el.conversationBox.style.display = 'block';
+      el.noMessages.style.display = 'none';
+      el.conversationBox.appendChild(entry);
+
+      // Re-attach click handlers for citation chips
+      attachCitationHandlers();
+    }
+
+    function attachCitationHandlers() {
+      document.querySelectorAll('.citation-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+          const chunkId = this.getAttribute('data-chunk-id');
+          jumpToPageAndHighlight(chunkId);
+          // Mark this chip as selected
+          document.querySelectorAll('.citation-chip').forEach(c => c.classList.remove('selected'));
+          this.classList.add('selected');
+        });
+      });
+    }
+
+    function jumpToPageAndHighlight(chunkId) {
+      // Parse chunkId like "A1P3" or "sample_A1"
+      const match = chunkId.match(/P(\d+)/);
+      if (match) {
+        const page = parseInt(match[1]);
+        state.currentPage = page;
+        loadPage(page);
+      }
+      // Highlight the clause - we'll scroll/navigate to it
+      const chip = document.querySelector(`.citation-chip[data-chunk-id="${chunkId}"]`);
+      if (chip) {
+        chip.classList.add('selected');
+        // Scroll into view
+        chip.scrollIntoView({ block: 'center' });
+      }
+    }
+
+    function showRefusal(reason, nearestClauses) {
+      // Remove any existing refusal
+      const existing = document.getElementById('refusalStamp');
+      if (existing) existing.remove();
+
+      const container = el.refusalContainer;
+      container.innerHTML = '';
+
+      const stamp = document.createElement('div');
+      stamp.className = 'refusal-stamp';
+      stamp.textContent = 'INSUFFICIENT INFORMATION';
+      stamp.setAttribute('role', 'status');
+      stamp.setAttribute('aria-live', 'polite');
+
+      const reasonPara = document.createElement('p');
+      reasonPara.className = 'refusal-reason';
+      reasonPara.textContent = reason;
+
+      const closestLabel = document.createElement('div');
+      closestLabel.className = 'closest-text';
+      closestLabel.innerHTML = `<span class="label">Closest text found (not an answer)</span>`;
+
+      const closestClauses = document.createElement('div');
+      closestClauses.className = 'closest-clauses';
+      nearestClauses.forEach(clause => {
+        const chip = document.createElement('span');
+        chip.className = 'clause-chip';
+        chip.textContent = `[p.${clause.page} sec ${clause.section || ''}]`;
+        closestClauses.appendChild(chip);
+      });
+
+      container.appendChild(stamp);
+      container.appendChild(reasonPara);
+      container.appendChild(closestLabel);
+      container.appendChild(closestClauses);
+
+      // Focus the stamp for screen readers
+      stamp.focus();
+    }
+
+    function showTraceDrawer(entries) {
+      if (entries.length === 0) {
+        el.traceBody.innerHTML = '<div class="trace-entry">No trace entries yet.</div>';
+      } else {
+        el.traceBody.innerHTML = entries.map(entry => `
+          <div class="trace-entry">
+            <span class="question">${entry.question.substring(0, 80)}${entry.question.length > 80 ? '...' : ''}</span>
+            <span class="gate">gate: ${entry.gate_decision}</span>
+            <span class="score">score: ${entry.retrieved_scores.map(s => s.toFixed(3)).join(', ')}</span>
+          </div>
+        `).join('');
+      }
+      el.traceDrawer.classList.add('open');
+    }
+
+    // ============================================================
+    // API client
+    // ============================================================
+    const API_BASE = '/api';
+
+    async function api(path, options = {}) {
+      const url = new URL(`${API_BASE}${path}`, window.location.origin);
+      const defaults = {
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
+      if (options.body && !(options.body instanceof FormData)) {
+        defaults.body = JSON.stringify(options.body);
+      }
+      const res = await fetch(url, { ...defaults, ...options });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`API error: ${res.status} - ${err}`);
+      }
+      return res.json();
+    }
+
+    // ============================================================
+    // Upload handlers
+    // ============================================================
+    async function handleUpload(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const result = await api('/api/upload', { body: formData });
+        state.docId = result.doc_id;
+        state.totalPages = result.pages;
+        state.currentPage = 1;
+        setDocName(result.filename, true); // samples are synthetic
+        loadPage(1);
+        showSuggestedQuestions();
+      } catch (err) {
+        console.error(err);
+        alert('Upload failed: ' + err.message);
+      }
+    }
+
+    async function handleSample(name) {
+      try {
+        const result = await api(`/api/sample/${name}`);
+        state.docId = result.doc_id;
+        state.totalPages = result.pages;
+        state.currentPage = 1;
+        setDocName(result.filename, true);
+        loadPage(1);
+        showSuggestedQuestions();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load sample: ' + err.message);
+      }
+    }
+
+    // Load a specific page
+    async function loadPage(page) {
+      if (!state.docId) return;
+      state.currentPage = page;
+      el.pageSkeleton.style.display = 'block';
+      el.pdfContainer.innerHTML = '';
+
+      try {
+        // Try image first
+        const imgRes = await api(`/api/page/${state.docId}/${page}.png`);
+        if (imgRes && !imgRes.error) {
+          el.pdfContainer.innerHTML = `<img class="pdf-page-img" src="${imgRes}" alt="Policy page ${page} of ${state.totalPages}" style="max-width:100%; max-height:100%;">`;
+          updatePageIndicator(page, state.totalPages);
+          el.pageSkeleton.style.display = 'none';
+          return;
+        }
+      } catch (e) {
+        // Fall through to text fallback
+      }
+
+      // Fallback: text endpoint + mark highlighting
+      try {
+        const txtRes = await api(`/api/page/${state.docId}/${page}/text`);
+        el.pdfContainer.innerHTML = '';
+        const pre = document.createElement('pre');
+        pre.textContent = (txtRes.text || '').substring(0, 2000);
+        el.pdfContainer.appendChild(pre);
+        updatePageIndicator(page, state.totalPages);
+        el.pageSkeleton.style.display = 'none';
+      } catch (e) {
+        el.pdfContainer.innerHTML = '<p>Could not load page.</p>';
+        el.pageSkeleton.style.display = 'none';
+      }
+    }
+
+    // Show suggested question chips when ready
+    function showSuggestedQuestions() {
+      // Clear any existing chips
+      const existing = el.conversationBox.querySelector('.suggested-chips');
+      if (existing) existing.remove();
+
+      const chips = [
+        'What is covered for hospitalization?',
+        'What is excluded?',
+        'Are there waiting periods?',
+        'What is the room rent limit?'
+      ];
+
+      const chipsDiv = document.createElement('div');
+      chipsDiv.className = 'suggested-chips';
+      chipsDiv.style.display = 'grid';
+      chipsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
+      chips.style.gap = '0.75rem';
+
+      chips.forEach(q => {
+        const button = document.createElement('button');
+        button.className = 'citation-chip';
+        button.textContent = q;
+        button.style.padding = '0.5rem 0.75rem';
+        button.style.fontSize = '0.85rem';
+        button.style.width = '100%';
+        button.style.textAlign = 'left';
+        button.addEventListener('click', () => {
+          composeAndAsk(q);
+        });
+        chipsDiv.appendChild(button);
+      });
+
+      // Insert after the no-messages or at top of conversation
+      if (el.conversationBox.querySelector('.no-messages')) {
+        el.conversationBox.querySelector('.no-messages').insertAdjacentElement('afterend', chipsDiv);
+      } else if (el.conversationBox.children.length > 0) {
+        el.conversationBox.insertBefore(chipsDiv, el.conversationBox.firstChild);
+      } else {
+        el.conversationBox.appendChild(chipsDiv);
+      }
+    }
+
+    async function composeAndAsk(question) {
+      el.composerInput.value = question;
+      sendMessage();
+    }
+
+    async function sendMessage() {
+      const question = el.composerInput.value.trim();
+      if (!question || !state.docId) return;
+
+      // Send to API
+      try {
+        const result = await api('/api/ask', {
+          body: {
+            doc_id: state.docId,
+            question: question,
+            history: [] // simplified; full multi-turn would track history
+          }
+        });
+
+        // Update UI based on result
+        updateUIAfterAsk(question, result);
+        el.composerInput.value = '';
+      } catch (err) {
+        console.error(err);
+        alert('Error asking question: ' + err.message);
+      }
+    }
+
+    function updateUIAfterAsk(question, result) {
+      // Remove suggested chips
+      const chips = el.conversationBox.querySelector('.suggested-chips');
+      if (chips) chips.remove();
+
+      // Add new memo entry
+      const no = el.conversationBox.querySelectorAll('.memo-entry').length + 1;
+      const answer = result.answer || '';
+      const citations = result.citations || [];
+
+      appendMemo(no, question, answer, citations);
+
+      // Handle refusal
+      if (result.status === 'insufficient') {
+        showRefusal(result.reason, result.nearest || []);
+      } else {
+        // Hide refusal if visible
+        const existing = document.getElementById('refusalContainer').firstChild;
+        if (existing) existing.remove();
+      }
+
+      // Load the page with citations
+      if (citations.length > 0 && state.currentPage) {
+        // Jump to the first cited page
+        const firstPage = citations[0].page;
+        loadPage(firstPage);
+      } else if (state.docId && state.currentPage) {
+        // Just stay on current page
+        loadPage(state.currentPage);
+      }
+
+      // Update page indicator
+      if (state.totalPages > 0) {
+        updatePageIndicator(state.currentPage, state.totalPages);
+      }
+    }
+
+    // ============================================================
+    // Keyboard shortcuts
+    // ============================================================
+    document.addEventListener('keydown', (e) => {
+      // / focuses composer
+      if (e.key === '/') {
+        e.preventDefault();
+        el.composerInput.focus();
+      }
+      // T toggles trace
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        state.traceOpen = !state.traceOpen;
+        el.traceDrawer.classList.toggle('open', state.traceOpen);
+      }
+      // Escape closes trace drawer
+      if (e.key === 'Escape' && state.traceOpen) {
+        e.preventDefault();
+        state.traceOpen = false;
+        el.traceDrawer.classList.remove('open');
+      }
+      // [ and ] flip pages
+      if (state.docId) {
+        if (e.key === ']') {
+          e.preventDefault();
+          loadPage(state.currentPage + 1);
+        }
+        if (e.key === '[') {
+          e.preventDefault();
+          loadPage(state.currentPage - 1);
+        }
+      }
+    });
+
+    // ============================================================
+    // Citation chip highlight sweep (simplified)
+    // When a citation chip is clicked, show highlight rectangles
+    // ============================================================
+    function setupHighlightSweep(chunkId) {
+      // In a full implementation, this would render highlight rectangles
+      // over the PDF page using the bounding boxes. For now, we'll
+      // just add a CSS class that triggers the highlight.
+      const chip = document.querySelector(`.citation-chip[data-chunk-id="${chunkId}"]`);
+      if (chip) {
+        chip.classList.add('selected');
+        // Scroll into view
+        chip.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+
+    // ============================================================
+    // Initialization
+    // ============================================================
+    (async function init() {
+      // Check if there are sample buttons
+      const sampleButtons = document.querySelectorAll('.sample-chip');
+      sampleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const name = btn.getAttribute('data-sample');
+          handleSample(name);
+        });
+      });
+
+      // Initialize: show empty state with sample chips
+      el.noMessages.style.display = 'block';
+      el.conversationBox.style.display = 'none';
+
+      // Attach composer Enter key handler
+      el.composerInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      // Trace button
+      el.traceBtn.addEventListener('click', () => {
+        state.traceOpen = !state.traceOpen;
+        el.traceDrawer.classList.toggle('open', state.traceOpen);
+      });
+
+      // Trace drawer close
+      el.traceDrawerClose.addEventListener('click', () => {
+        state.traceOpen = false;
+        el.traceDrawer.classList.remove('open');
+      });
+
+      // Page navigation
+      el.prevPage.addEventListener('click', () => loadPage(state.currentPage - 1));
+      el.nextPage.addEventListener('click', () => loadPage(state.currentPage + 1));
+      el.prevPageNav.addEventListener('click', () => loadPage(state.currentPage - 1));
+      el.nextPageNav.addEventListener('click', () => loadPage(state.currentPage + 1));
+      el.fitWidthBtn.addEventListener('click', () => {
+        el.fitWidthBtn.classList.toggle('active');
+        // TODO: implement fit width logic
+      });
+    })();
+  </script>
+</body>
+</html>
