@@ -38,6 +38,26 @@ from backend.models import QAAnswer, QAResponse, AskRequest
 
 
 # ---------------------------------------------------------------------------
+# Helper: extract numbers from text, normalizing Indian digit grouping
+# ---------------------------------------------------------------------------
+
+def _extract_numbers(text: str) -> set:
+    """Extract number-like strings from text, normalizing Indian digit grouping.
+
+    Returns a set of number strings with commas removed for easy comparison.
+    e.g. "1,50,000" -> "150000", "4000" -> "4000"
+    """
+    # Match Rs. X,XXX,XXX or X,XXX or XXXX or just numbers
+    number_pattern = re.compile(r"Rs?\.?\s*[\d,]+|[\d]+")
+    raw_numbers = set(number_pattern.findall(text))
+    # Normalize: remove commas from all extracted numbers
+    normalized: set = set()
+    for num in raw_numbers:
+        normalized.add(num.replace(",", ""))
+    return normalized
+
+
+# ---------------------------------------------------------------------------
 # Grounding check 1: every cited chunk_id must be in the retrieved set
 # ---------------------------------------------------------------------------
 
@@ -56,18 +76,17 @@ def _grounding_cited_chunks(citations: List[str], retrieved_chunk_ids: List[str]
 
 def _grounding_numbers_in_chunks(answer: str, citations: List[str],
                                   all_chunks: Dict[str, List[dict]]) -> bool:
-    """Check that every numeric amount/number in the answer appears in a cited chunk.
+    """Check that every numeric amount in the answer appears in a cited chunk.
 
-    Heuristic: extract sequences of digits (and Indian digit groupings like 1,50,000)
-    from the answer, then verify at least one cited chunk contains that substring.
+    Heuristic: extract number-like strings from the answer (normalizing
+    Indian digit grouping such as 1,50,000 -> 150000), then verify that
+    at least one cited chunk contains that number (also normalized).
     """
     if not citations:
-        return True  # no citations -> trivially pass (will be caught by check 1)
+        return True  # no citations -> trivially pass
 
-    # Extract number-like strings from the answer
-    # Match patterns like Rs. 1,50,000 or 150000 or 4,000 etc.
-    number_pattern = re.compile(r"Rs?\.?\s*[\d,]+|[\d,]+(?!\s*[a-z])")
-    answer_numbers = set(number_pattern.findall(answer))
+    # Extract normalized numbers from the answer
+    answer_numbers = _extract_numbers(answer)
 
     if not answer_numbers:
         # No explicit numbers found; trivially pass
@@ -81,9 +100,12 @@ def _grounding_numbers_in_chunks(answer: str, citations: List[str],
             for chunk in doc_chunks:
                 if chunk.get("chunk_id") == cid:
                     chunk_text = chunk.get("text", "")
+                    # Normalize chunk text numbers
+                    chunk_numbers = _extract_numbers(chunk_text)
                     # Check if any answer number appears in the chunk text
+                    # or matches a normalized chunk number
                     for num in answer_numbers:
-                        if num in chunk_text:
+                        if num in chunk_text or num in chunk_numbers:
                             found = True
                             break
                     if found:

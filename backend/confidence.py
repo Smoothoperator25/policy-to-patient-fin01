@@ -70,6 +70,9 @@ def gate(
         - "status": "answered" if top_score >= threshold else "insufficient"
         - "evidence_strength": float in [0, 1], mapped from the similarity
           between *top_score* and the interval [threshold, ~0.8].
+          - When top_score >= threshold: 0.0 (at threshold) -> 1.0 (at 0.8)
+          - When top_score < threshold: mapped to [0, 0.5] to reflect
+            lower confidence, since the question is unanswerable.
         - "reason": human-readable explanation (only present when status is
           "insufficient").
     """
@@ -81,7 +84,10 @@ def gate(
 
     if top_score >= threshold:
         # Above threshold — we can answer
-        evidence_strength = round(min(1.0, (top_score - threshold) / (0.8 - threshold)), 3) if top_score < 0.8 else 1.0
+        # Map from [threshold, 0.8] -> [0, 1]
+        evidence_strength = round(
+            min(1.0, (top_score - threshold) / (0.8 - threshold)), 3
+        ) if top_score < 0.8 else 1.0
         return {
             "status": "answered",
             "evidence_strength": evidence_strength,
@@ -89,23 +95,9 @@ def gate(
         }
     else:
         # Below threshold — insufficient information
-        # Map similarity from [0, threshold] range to [0, 1] evidence strength
-        # where 0 similarity -> 0.0 evidence, threshold similarity -> 0.0 evidence
-        # Actually: evidence_strength maps from the gap between threshold and ~0.8
-        # We want: when top_score == threshold -> evidence_strength = 0.0
-        #         when top_score is much lower -> still 0.0 (but we already know it's insufficient)
-        # The spec says: "mapped from similarity between the threshold and ~0.8"
-        # Let's interpret this as: evidence_strength = (top_score / threshold) when top_score < threshold
-        # But that could give >1.0. Instead, let's use a linear mapping:
-        # evidence_strength = max(0, min(1, (top_score - 0.0) / (threshold - 0.0)))
-        # Actually re-reading: "mapped from similarity between the threshold and ~0.8"
-        # I think this means: the evidence_strength is computed based on where top_score
-        # falls between the threshold (0.35) and a ideal high similarity of 0.8.
-        # But since top_score is BELOW threshold, we set evidence_strength to a low value.
-        # 
-        # Simplest interpretation: evidence_strength = top_score / threshold, clamped to [0,1]
-        # This gives a 0-1 scale of how close the score is to the threshold.
-        evidence_strength = round(max(0.0, min(1.0, top_score / threshold)), 3) if threshold > 0 else 0.0
+        # Map to [0, 0.5] to reflect lower confidence.
+        # A score of 0 -> 0.0 evidence, score at threshold -> 0.5 evidence
+        evidence_strength = round((top_score / threshold) * 0.5, 3) if threshold > 0 else 0.0
 
         reason = "The retrieved clauses do not provide sufficient similarity to confidently answer the question. " \
                  "The top retrieved chunk has a similarity score below the confidence threshold."
