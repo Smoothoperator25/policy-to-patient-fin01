@@ -1,0 +1,13 @@
+# Backend dependencies
+fastapi
+uvicorn[standard]
+pdfplumber
+sentence-transformers
+faiss-cpu
+numpy
+pydantic
+python-dotenv
+pytest
+reportlab
+
+# Frontend served statically by FastAPI - no build deps needed

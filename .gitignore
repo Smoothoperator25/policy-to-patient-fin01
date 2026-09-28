@@ -1,0 +1,13 @@
+.env
+venv/
+__pycache_*/
+*.zip
+*.mp4
+*.mov
+*.exe
+*.dll
+*.jar
+faiss_index/
+.cache/
+uploads/
+page_cache/
