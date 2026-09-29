@@ -64,8 +64,8 @@ class QAResponse(BaseModel):
     evidence_strength: float = Field(
         ge=0.0, le=1.0, description="Derived from retrieval similarity"
     )
-    citations: List[str] = Field(
-        default_factory=list, description="Chunk IDs cited in the answer"
+    citations: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Cited chunks with details"
     )
     nearest: List[Dict[str, Any]] = Field(
         default_factory=list, description="Nearest chunks when insufficient"

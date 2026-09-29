@@ -518,6 +518,27 @@ async def ask_question(payload: AskRequest, request: Request) -> QAResponse:
     _cleanup_old_files()
 
     # Construct the response
+    citation_rows = []
+    if final_status == "answered":
+        # Build citation rows with full details
+        for cit_id in qa_result.get("citations", []):
+            # Find the chunk details
+            chunk = next(
+                (c for c in chunks if c.chunk_id == cit_id),
+                None,
+            )
+            if chunk:
+                citation_rows.append(
+                    {
+                        "chunk_id": cit_id,
+                        "page": chunk.page,
+                        "section": chunk.section or "?",
+                        "quote": chunk.text[:200] + ("..." if len(chunk.text) > 200 else ""),
+                        "bboxes": chunk.bboxes,
+                        "page_width": chunk.page_width,
+                        "page_height": chunk.page_height,
+                    }
+                )
     citations_detail = citation_rows if citation_rows else []
 
     response = QAResponse(
